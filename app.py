@@ -6,7 +6,18 @@ from openai import OpenAI
 
 load_dotenv()
 
-MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+def get_setting(name, default=None):
+    # Streamlit Cloud의 Secrets를 먼저 확인하고, 없으면 .env(환경변수)를 사용
+    try:
+        if name in st.secrets:
+            return st.secrets[name]
+    except FileNotFoundError:
+        pass
+    return os.getenv(name, default)
+
+
+MODEL = get_setting("OPENAI_MODEL", "gpt-4o-mini")
 
 LANGUAGES = {
     "영어 (English)": "English",
@@ -17,11 +28,15 @@ LANGUAGES = {
 
 
 @st.cache_resource
+def create_client(api_key):
+    return OpenAI(api_key=api_key)
+
+
 def get_client():
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = get_setting("OPENAI_API_KEY")
     if not api_key:
         return None
-    return OpenAI(api_key=api_key)
+    return create_client(api_key)
 
 
 def translate(client, text, target_language):
@@ -49,7 +64,7 @@ st.caption(f"OpenAI `{MODEL}` 모델을 사용합니다.")
 
 client = get_client()
 if client is None:
-    st.error(".env 파일에 OPENAI_API_KEY가 설정되어 있지 않습니다.")
+    st.error("OPENAI_API_KEY가 설정되어 있지 않습니다. (.env 파일 또는 Streamlit Secrets)")
     st.stop()
 
 text = st.text_area("번역할 글을 입력하세요", height=200)
